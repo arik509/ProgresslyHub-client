@@ -31,7 +31,7 @@ const Navbar = () => {
             <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
             {user && (
               <>
-                <li><NavLink to="/projects" className={navLinkClass}>Projects</NavLink></li>
+                <li><NavLink to="/app/projects" className={navLinkClass}>Projects</NavLink></li>
                 <li><NavLink to="/tasks" className={navLinkClass}>Tasks</NavLink></li>
               </>
             )}
@@ -52,8 +52,8 @@ const Navbar = () => {
           <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
           {user && (
             <>
-              <li><NavLink to="/projects" className={navLinkClass}>Projects</NavLink></li>
-              <li><NavLink to="/tasks" className={navLinkClass}>Tasks</NavLink></li>
+              <li><NavLink to="/app/projects" className={navLinkClass}>Projects</NavLink></li>
+              <li><NavLink to="/app/tasks" className={navLinkClass}>Tasks</NavLink></li>
             </>
           )}
           {user && ["CEO", "ADMIN", "MANAGER"].includes(user.role) && (

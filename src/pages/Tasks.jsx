@@ -1,0 +1,448 @@
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { listTasks, createTask, updateTask, deleteTask } from "../api/tasksApi";
+
+const Tasks = () => {
+  const { role, officeId } = useAuth();
+
+  const canManageTasks = useMemo(
+    () => ["CEO", "ADMIN", "MANAGER"].includes(role),
+    [role]
+  );
+
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pageError, setPageError] = useState("");
+
+  // Create modal
+  const [openCreate, setOpenCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    title: "",
+    description: "",
+    status: "TODO",
+    priority: "MEDIUM",
+    assignedTo: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  // Edit modal
+  const [editingTask, setEditingTask] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    status: "",
+    priority: "",
+    assignedTo: "",
+  });
+  const [editError, setEditError] = useState("");
+
+  // Delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const loadTasks = async () => {
+    if (!officeId) return;
+    setPageError("");
+    setLoading(true);
+    try {
+      const data = await listTasks(officeId);
+      setTasks(data?.tasks || []);
+    } catch (e) {
+      setPageError(e.message || "Failed to load tasks.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [officeId]);
+
+  const onCreateTask = async (e) => {
+    e.preventDefault();
+    setCreateError("");
+
+    if (!officeId) return setCreateError("No officeId found.");
+    if (!createForm.title) return setCreateError("Task title is required.");
+
+    setSaving(true);
+    try {
+      await createTask(officeId, createForm);
+      setOpenCreate(false);
+      setCreateForm({
+        title: "",
+        description: "",
+        status: "TODO",
+        priority: "MEDIUM",
+        assignedTo: "",
+      });
+      await loadTasks();
+    } catch (e2) {
+      setCreateError(e2.message || "Failed to create task.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onEditTask = async (e) => {
+    e.preventDefault();
+    setEditError("");
+
+    if (!editingTask) return;
+    if (!editForm.title) return setEditError("Task title is required.");
+
+    setSaving(true);
+    try {
+      await updateTask(officeId, editingTask._id, editForm);
+      setEditingTask(null);
+      await loadTasks();
+    } catch (e2) {
+      setEditError(e2.message || "Failed to update task.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onDeleteTask = async () => {
+    if (!deleteConfirm) return;
+
+    setSaving(true);
+    try {
+      await deleteTask(officeId, deleteConfirm._id);
+      setDeleteConfirm(null);
+      await loadTasks();
+    } catch (e) {
+      setPageError(e.message || "Failed to delete task.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const statusBadgeColor = (status) => {
+    switch (status) {
+      case "IN_PROGRESS":
+        return "badge-info";
+      case "DONE":
+        return "badge-success";
+      case "BLOCKED":
+        return "badge-error";
+      default:
+        return "badge-ghost";
+    }
+  };
+
+  const priorityBadgeColor = (priority) => {
+    switch (priority) {
+      case "HIGH":
+        return "badge-error";
+      case "MEDIUM":
+        return "badge-warning";
+      case "LOW":
+        return "badge-info";
+      default:
+        return "badge-ghost";
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold">Tasks</h1>
+          <p className="text-base-content/70">
+            Your role: <span className="font-semibold">{role || "—"}</span> | Office:{" "}
+            <span className="font-semibold">{officeId || "—"}</span>
+          </p>
+        </div>
+
+        {canManageTasks && (
+          <button className="btn btn-primary" onClick={() => setOpenCreate(true)}>
+            + Create task
+          </button>
+        )}
+      </div>
+
+      {!officeId && (
+        <div className="alert alert-warning">
+          <span>No officeId found in your account claims. Create an office first.</span>
+        </div>
+      )}
+
+      {pageError && (
+        <div className="alert alert-error">
+          <span>{pageError}</span>
+        </div>
+      )}
+
+      <div className="card bg-base-100 shadow border border-base-300">
+        <div className="card-body">
+          <div className="flex items-center justify-between">
+            <h2 className="card-title">All tasks</h2>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={loadTasks}
+              disabled={!officeId || loading}
+            >
+              Refresh
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="py-8 flex justify-center">
+              <span className="loading loading-spinner loading-lg"></span>
+            </div>
+          ) : tasks.length === 0 ? (
+            <p className="text-base-content/70">No tasks yet. Create one to get started.</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {tasks.map((t) => (
+                <div key={t._id} className="card bg-base-200 shadow-sm border border-base-300">
+                  <div className="card-body p-4">
+                    <h3 className="card-title text-lg">{t.title}</h3>
+                    <p className="text-sm text-base-content/70 line-clamp-2">
+                      {t.description || "No description"}
+                    </p>
+
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className={`badge badge-sm ${statusBadgeColor(t.status)}`}>
+                        {t.status}
+                      </span>
+                      <span className={`badge badge-sm ${priorityBadgeColor(t.priority)}`}>
+                        {t.priority}
+                      </span>
+                    </div>
+
+                    {t.assignedTo && (
+                      <p className="text-xs text-base-content/60 mt-2">
+                        Assigned: {t.assignedTo}
+                      </p>
+                    )}
+
+                    {canManageTasks && (
+                      <div className="card-actions justify-end mt-3">
+                        <button
+                          className="btn btn-xs btn-ghost"
+                          onClick={() => {
+                            setEditingTask(t);
+                            setEditForm({
+                              title: t.title,
+                              description: t.description || "",
+                              status: t.status,
+                              priority: t.priority,
+                              assignedTo: t.assignedTo || "",
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-xs btn-error btn-ghost"
+                          onClick={() => setDeleteConfirm(t)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!canManageTasks && (
+            <div className="alert alert-info mt-4">
+              <span>Only CEO/ADMIN/MANAGER can create/edit/delete tasks.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create Modal */}
+      {openCreate && (
+        <dialog className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Create task</h3>
+
+            {createError && (
+              <div className="alert alert-error mt-3">
+                <span>{createError}</span>
+              </div>
+            )}
+
+            <form className="mt-4 space-y-3" onSubmit={onCreateTask}>
+              <input
+                className="input input-bordered w-full"
+                placeholder="Task title"
+                value={createForm.title}
+                onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
+              />
+
+              <textarea
+                className="textarea textarea-bordered w-full"
+                placeholder="Description (optional)"
+                rows={3}
+                value={createForm.description}
+                onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+              />
+
+              <select
+                className="select select-bordered w-full"
+                value={createForm.status}
+                onChange={(e) => setCreateForm((p) => ({ ...p, status: e.target.value }))}
+              >
+                <option value="TODO">TODO</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="DONE">DONE</option>
+                <option value="BLOCKED">BLOCKED</option>
+              </select>
+
+              <select
+                className="select select-bordered w-full"
+                value={createForm.priority}
+                onChange={(e) => setCreateForm((p) => ({ ...p, priority: e.target.value }))}
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+              </select>
+
+              <input
+                className="input input-bordered w-full"
+                placeholder="Assigned to (email or UID)"
+                value={createForm.assignedTo}
+                onChange={(e) => setCreateForm((p) => ({ ...p, assignedTo: e.target.value }))}
+              />
+
+              <div className="modal-action">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setOpenCreate(false)}
+                >
+                  Cancel
+                </button>
+                <button className="btn btn-primary" type="submit" disabled={saving}>
+                  {saving ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <form method="dialog" className="modal-backdrop" onClick={() => setOpenCreate(false)}>
+            <button>close</button>
+          </form>
+        </dialog>
+      )}
+
+      {/* Edit Modal */}
+      {editingTask && (
+        <dialog className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Edit task</h3>
+
+            {editError && (
+              <div className="alert alert-error mt-3">
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form className="mt-4 space-y-3" onSubmit={onEditTask}>
+              <input
+                className="input input-bordered w-full"
+                placeholder="Task title"
+                value={editForm.title}
+                onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
+              />
+
+              <textarea
+                className="textarea textarea-bordered w-full"
+                placeholder="Description"
+                rows={3}
+                value={editForm.description}
+                onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+              />
+
+              <select
+                className="select select-bordered w-full"
+                value={editForm.status}
+                onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
+              >
+                <option value="TODO">TODO</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="DONE">DONE</option>
+                <option value="BLOCKED">BLOCKED</option>
+              </select>
+
+              <select
+                className="select select-bordered w-full"
+                value={editForm.priority}
+                onChange={(e) => setEditForm((p) => ({ ...p, priority: e.target.value }))}
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+              </select>
+
+              <input
+                className="input input-bordered w-full"
+                placeholder="Assigned to (email or UID)"
+                value={editForm.assignedTo}
+                onChange={(e) => setEditForm((p) => ({ ...p, assignedTo: e.target.value }))}
+              />
+
+              <div className="modal-action">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setEditingTask(null)}
+                >
+                  Cancel
+                </button>
+                <button className="btn btn-primary" type="submit" disabled={saving}>
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <form
+            method="dialog"
+            className="modal-backdrop"
+            onClick={() => setEditingTask(null)}
+          >
+            <button>close</button>
+          </form>
+        </dialog>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        <dialog className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Delete task?</h3>
+            <p className="py-4">
+              Are you sure you want to delete <strong>{deleteConfirm.title}</strong>? This action
+              cannot be undone.
+            </p>
+
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-error" onClick={onDeleteTask} disabled={saving}>
+                {saving ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+
+          <form method="dialog" className="modal-backdrop" onClick={() => setDeleteConfirm(null)}>
+            <button>close</button>
+          </form>
+        </dialog>
+      )}
+    </div>
+  );
+};
+
+export default Tasks;
