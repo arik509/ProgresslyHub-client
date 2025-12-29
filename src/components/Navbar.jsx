@@ -26,7 +26,7 @@ const Navbar = () => {
 
           <ul
             tabIndex={0}
-            className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-[1]"
+            className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-1"
           >
             <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
             {user && (
@@ -76,7 +76,7 @@ const Navbar = () => {
               </div>
             </div>
 
-            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-60 p-2 shadow z-[1]">
+            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-60 p-2 shadow z-1">
               <li className="menu-title">
                 <span className="truncate">{user.email}</span>
                 <span className="badge badge-primary badge-sm mt-1">{user.role}</span>
