@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "../firebase/firebase";
+
 
 const Register = () => {
   const navigate = useNavigate();
@@ -24,29 +27,28 @@ const Register = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
+  
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
-
+  
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", {
-        name: form.name,
-        email: form.email,
-        password: form.password,
-      });
-
-      // expected: { token, user }
-      login(res.data.token, res.data.user);
-      navigate("/", { replace: true });
+      const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+  
+      if (form.name) {
+        await updateProfile(cred.user, { displayName: form.name });
+      }
+  
+      navigate("/app", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed. Try again.");
+      setError(err.message || "Registration failed.");
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">

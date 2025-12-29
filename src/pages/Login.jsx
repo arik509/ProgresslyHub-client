@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase/firebase";
+
 
 const Login = () => {
   const navigate = useNavigate();
@@ -19,18 +22,16 @@ const Login = () => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      const res = await api.post("/auth/login", form);
-      // expected: { token, user }
-      login(res.data.token, res.data.user);
-      navigate("/", { replace: true });
+      await signInWithEmailAndPassword(auth, form.email, form.password);
+      navigate("/app", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Try again.");
+      setError(err.message || "Login failed.");
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
