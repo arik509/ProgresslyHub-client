@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -7,11 +8,29 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  // Store token and decode user info (or fetch from /me endpoint)
-  const login = (token, userData) => {
-    localStorage.setItem('token', token);
-    setToken(token);
-    setUser(userData); // { id, email, role, officeId, ... }
+  // Fetch current user on mount if token exists
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (token) {
+        try {
+          const response = await api.get('/auth/me');
+          setUser(response.data.user);
+        } catch (error) {
+          console.error('Failed to fetch user:', error);
+          localStorage.removeItem('token');
+          setToken(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchUser();
+  }, [token]);
+
+  const login = (newToken, userData) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    setUser(userData);
   };
 
   const logout = () => {
@@ -20,17 +39,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  // On mount, check if token exists and fetch user
-  useEffect(() => {
-    if (token) {
-      // Call backend /auth/me to get current user
-      // For now, just set loading false
-      setLoading(false);
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
-
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>
       {children}
@@ -38,4 +46,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
+};
