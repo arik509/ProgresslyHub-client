@@ -1,55 +1,29 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "../firebase/firebase";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(null); // Firebase user object
   const [loading, setLoading] = useState(true);
 
-  // Fetch current user on mount if token exists
   useEffect(() => {
-    const fetchUser = async () => {
-      if (token) {
-        try {
-          const response = await api.get('/auth/me');
-          setUser(response.data.user);
-        } catch (error) {
-          console.error('Failed to fetch user:', error);
-          localStorage.removeItem('token');
-          setToken(null);
-        }
-      }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser || null);
       setLoading(false);
-    };
+    });
 
-    fetchUser();
-  }, [token]);
+    return () => unsubscribe();
+  }, []);
 
-  const login = (newToken, userData) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setUser(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-  };
+  const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
