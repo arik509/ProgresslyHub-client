@@ -5,8 +5,11 @@ import { auth } from "../firebase/firebase";
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Firebase user
-  const [role, setRole] = useState("EMPLOYEE"); // default until claims exist
+  const [user, setUser] = useState(null);
+
+  const [role, setRole] = useState("EMPLOYEE");     // from custom claims
+  const [officeId, setOfficeId] = useState(null);   // from custom claims (string)
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,18 +18,23 @@ export const AuthProvider = ({ children }) => {
 
       if (!currentUser) {
         setRole("EMPLOYEE");
+        setOfficeId(null);
         setLoading(false);
         return;
       }
 
       try {
-        // Reads custom claims from ID token result (role, officeId etc.)
+        // Custom claims are available via ID token result [web:373]
         const tokenResult = await getIdTokenResult(currentUser);
+
         const claimRole = tokenResult?.claims?.role;
+        const claimOfficeId = tokenResult?.claims?.officeId;
 
         setRole(typeof claimRole === "string" ? claimRole : "EMPLOYEE");
+        setOfficeId(typeof claimOfficeId === "string" ? claimOfficeId : null);
       } catch (e) {
         setRole("EMPLOYEE");
+        setOfficeId(null);
       } finally {
         setLoading(false);
       }
@@ -38,7 +46,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, logout }}>
+    <AuthContext.Provider value={{ user, role, officeId, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
