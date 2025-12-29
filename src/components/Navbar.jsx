@@ -65,8 +65,8 @@ const Navbar = () => {
       <div className="navbar-end gap-2">
         {!user ? (
           <>
-            <Link to="/login" className="btn btn-ghost">Login</Link>
-            <Link to="/register" className="btn btn-primary">Get started</Link>
+            <Link to="/auth/login" className="btn btn-ghost">Login</Link>
+            <Link to="/auth/register" className="btn btn-primary">Get started</Link>
           </>
         ) : (
           <div className="dropdown dropdown-end">
