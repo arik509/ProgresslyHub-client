@@ -8,6 +8,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
+import PrivateOutlet from "./components/PrivateOutlet";
+import AppLayout from "./layouts/AppLayout";
+import Dashboard from "./pages/Dashboard";
+
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +32,17 @@ export const router = createBrowserRouter([
       { path: "unauthorized", Component: Unauthorized },
     ],
   },
-
+  {
+    path: "/app",
+    Component: PrivateOutlet, // protects everything under /app
+    children: [
+      {
+        Component: AppLayout,  // layout for logged-in area
+        children: [
+          { index: true, Component: Dashboard },
+        ],
+      },
+    ],
+  },
   { path: "*", Component: NotFound },
 ]);
