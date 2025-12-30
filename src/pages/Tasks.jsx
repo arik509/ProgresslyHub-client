@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { listTasks, createTask, updateTask, deleteTask } from "../api/tasksApi";
 
 const Tasks = () => {
-  const { role, officeId } = useAuth();
+  const { role, officeId, user } = useAuth();
 
   const canManageTasks = useMemo(
     () => ["CEO", "ADMIN", "MANAGER"].includes(role),
@@ -90,7 +90,7 @@ const Tasks = () => {
     setEditError("");
 
     if (!editingTask) return;
-    if (!editForm.title) return setEditError("Task title is required.");
+    if (!editForm.title && canManageTasks) return setEditError("Task title is required.");
 
     setSaving(true);
     try {
@@ -114,6 +114,19 @@ const Tasks = () => {
       await loadTasks();
     } catch (e) {
       setPageError(e.message || "Failed to delete task.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Quick status update for employees
+  const onQuickStatusUpdate = async (task, newStatus) => {
+    setSaving(true);
+    try {
+      await updateTask(officeId, task._id, { status: newStatus });
+      await loadTasks();
+    } catch (e) {
+      setPageError(e.message || "Failed to update status.");
     } finally {
       setSaving(false);
     }
@@ -143,6 +156,11 @@ const Tasks = () => {
       default:
         return "badge-ghost";
     }
+  };
+
+  // Check if task is assigned to current user
+  const isMyTask = (task) => {
+    return task.assignedTo === user?.email || task.assignedTo === user?.uid;
   };
 
   return (
@@ -216,34 +234,71 @@ const Tasks = () => {
                     {t.assignedTo && (
                       <p className="text-xs text-base-content/60 mt-2">
                         Assigned: {t.assignedTo}
+                        {isMyTask(t) && <span className="ml-1 badge badge-xs badge-primary">You</span>}
                       </p>
                     )}
 
-                    {canManageTasks && (
-                      <div className="card-actions justify-end mt-3">
-                        <button
-                          className="btn btn-xs btn-ghost"
-                          onClick={() => {
-                            setEditingTask(t);
-                            setEditForm({
-                              title: t.title,
-                              description: t.description || "",
-                              status: t.status,
-                              priority: t.priority,
-                              assignedTo: t.assignedTo || "",
-                            });
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-xs btn-error btn-ghost"
-                          onClick={() => setDeleteConfirm(t)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
+                    {/* Action buttons */}
+                    <div className="card-actions justify-end mt-3 gap-1">
+                      {/* Employees can update status of their tasks */}
+                      {!canManageTasks && isMyTask(t) && t.status !== "DONE" && (
+                        <div className="dropdown dropdown-end">
+                          <button className="btn btn-xs btn-primary" disabled={saving}>
+                            Update Status
+                          </button>
+                          <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-40 z-[1]">
+                            {t.status !== "IN_PROGRESS" && (
+                              <li>
+                                <button onClick={() => onQuickStatusUpdate(t, "IN_PROGRESS")}>
+                                  In Progress
+                                </button>
+                              </li>
+                            )}
+                            {t.status !== "DONE" && (
+                              <li>
+                                <button onClick={() => onQuickStatusUpdate(t, "DONE")}>
+                                  Mark Done
+                                </button>
+                              </li>
+                            )}
+                            {t.status !== "BLOCKED" && (
+                              <li>
+                                <button onClick={() => onQuickStatusUpdate(t, "BLOCKED")}>
+                                  Blocked
+                                </button>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Managers can edit/delete */}
+                      {canManageTasks && (
+                        <>
+                          <button
+                            className="btn btn-xs btn-ghost"
+                            onClick={() => {
+                              setEditingTask(t);
+                              setEditForm({
+                                title: t.title,
+                                description: t.description || "",
+                                status: t.status,
+                                priority: t.priority,
+                                assignedTo: t.assignedTo || "",
+                              });
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-xs btn-error btn-ghost"
+                            onClick={() => setDeleteConfirm(t)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -258,7 +313,7 @@ const Tasks = () => {
         </div>
       </div>
 
-      {/* Create Modal */}
+      {/* Create Modal (Manager only) */}
       {openCreate && (
         <dialog className="modal modal-open">
           <div className="modal-box">
@@ -335,7 +390,7 @@ const Tasks = () => {
         </dialog>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal (Manager only) */}
       {editingTask && (
         <dialog className="modal modal-open">
           <div className="modal-box">
@@ -416,7 +471,7 @@ const Tasks = () => {
         </dialog>
       )}
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation (Manager only) */}
       {deleteConfirm && (
         <dialog className="modal modal-open">
           <div className="modal-box">

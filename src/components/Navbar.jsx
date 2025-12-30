@@ -2,7 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
 
   const navLinkClass = ({ isActive }) =>
     `rounded-lg ${isActive ? "bg-primary text-primary-content" : ""}`;
@@ -26,17 +26,18 @@ const Navbar = () => {
 
           <ul
             tabIndex={0}
-            className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-1"
+            className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-[1]"
           >
             <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
             {user && (
               <>
+                <li><NavLink to="/app" className={navLinkClass}>Dashboard</NavLink></li>
                 <li><NavLink to="/app/projects" className={navLinkClass}>Projects</NavLink></li>
-                <li><NavLink to="/tasks" className={navLinkClass}>Tasks</NavLink></li>
+                <li><NavLink to="/app/tasks" className={navLinkClass}>Tasks</NavLink></li>
               </>
             )}
-            {user && ["CEO", "ADMIN", "MANAGER"].includes(user.role) && (
-              <li><NavLink to="/members" className={navLinkClass}>Members</NavLink></li>
+            {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
+              <li><NavLink to="/app/members" className={navLinkClass}>Members</NavLink></li>
             )}
           </ul>
         </div>
@@ -52,12 +53,13 @@ const Navbar = () => {
           <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
           {user && (
             <>
+              <li><NavLink to="/app" className={navLinkClass}>Dashboard</NavLink></li>
               <li><NavLink to="/app/projects" className={navLinkClass}>Projects</NavLink></li>
               <li><NavLink to="/app/tasks" className={navLinkClass}>Tasks</NavLink></li>
             </>
           )}
-          {user && ["CEO", "ADMIN", "MANAGER"].includes(user.role) && (
-            <li><NavLink to="/members" className={navLinkClass}>Members</NavLink></li>
+          {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
+            <li><NavLink to="/app/members" className={navLinkClass}>Members</NavLink></li>
           )}
         </ul>
       </div>
@@ -76,11 +78,12 @@ const Navbar = () => {
               </div>
             </div>
 
-            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-60 p-2 shadow z-1">
+            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-60 p-2 shadow z-[1]">
               <li className="menu-title">
                 <span className="truncate">{user.email}</span>
-                <span className="badge badge-primary badge-sm mt-1">{user.role}</span>
+                <span className="badge badge-primary badge-sm mt-1">{role || "EMPLOYEE"}</span>
               </li>
+              <li><NavLink to="/app" className={navLinkClass}>Dashboard</NavLink></li>
               <li><NavLink to="/profile" className={navLinkClass}>Profile</NavLink></li>
               <li><NavLink to="/settings" className={navLinkClass}>Settings</NavLink></li>
               <li><button onClick={logout} className="text-error">Logout</button></li>
