@@ -5,93 +5,184 @@ const Navbar = () => {
   const { user, role, logout } = useAuth();
 
   const navLinkClass = ({ isActive }) =>
-    `rounded-lg ${isActive ? "bg-primary text-primary-content" : ""}`;
+    `px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+      isActive
+        ? "bg-black text-white"
+        : "text-base-content/70 hover:text-base-content"
+    }`;
 
   return (
-    <div className="navbar bg-base-200 shadow-sm sticky top-0 z-50">
-      <div className="navbar-start">
-        {/* Mobile menu */}
-        <div className="dropdown">
-          <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </div>
-
-          <ul
-            tabIndex={0}
-            className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-[1]"
+    <header className="sticky top-0 z-50">
+      <div className="navbar max-w-6xl mx-auto px-4 lg:px-0 bg-transparent">
+        {/* Left: logo */}
+        <div className="navbar-start gap-2">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 rounded-full bg-black text-white px-4 py-2 text-sm font-semibold shadow-md"
           >
-            <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
-            {user && (
-              <>
-                <li><NavLink to="/app" className={navLinkClass}>Dashboard</NavLink></li>
-                <li><NavLink to="/app/projects" className={navLinkClass}>Projects</NavLink></li>
-                <li><NavLink to="/app/tasks" className={navLinkClass}>Tasks</NavLink></li>
-              </>
-            )}
-            {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
-              <li><NavLink to="/app/members" className={navLinkClass}>Members</NavLink></li>
-            )}
-          </ul>
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black font-bold">
+              P
+            </span>
+            <span>ProgresslyHub</span>
+          </Link>
+
+          {/* Desktop center nav */}
+          <nav className="hidden lg:flex ml-6">
+            <ul className="flex items-center gap-2 bg-white/40 backdrop-blur rounded-full px-2 py-1 shadow-sm">
+              <li>
+                <NavLink to="/" className={navLinkClass}>
+                  Home
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/personal" className={navLinkClass}>
+                  Personal
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/business" className={navLinkClass}>
+                  Business
+                </NavLink>
+              </li>
+              {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
+                <li>
+                  <NavLink to="/app/members" className={navLinkClass}>
+                    Employer
+                  </NavLink>
+                </li>
+              )}
+              {user && (
+                <li>
+                  <NavLink to="/app" className={navLinkClass}>
+                    Dashboard
+                  </NavLink>
+                </li>
+              )}
+            </ul>
+          </nav>
         </div>
 
-        <Link to="/" className="btn btn-ghost text-xl font-bold">
-          ProgresslyHub
-        </Link>
-      </div>
-
-      {/* Desktop menu */}
-      <div className="navbar-center hidden lg:flex">
-        <ul className="menu menu-horizontal px-1 gap-2">
-          <li><NavLink to="/" className={navLinkClass}>Home</NavLink></li>
-          {user && (
+        {/* Right: auth buttons */}
+        <div className="navbar-end gap-3">
+          {!user ? (
             <>
-              <li><NavLink to="/app" className={navLinkClass}>Dashboard</NavLink></li>
-              <li><NavLink to="/app/projects" className={navLinkClass}>Projects</NavLink></li>
-              <li><NavLink to="/app/tasks" className={navLinkClass}>Tasks</NavLink></li>
+              <Link
+                to="/auth/login"
+                className="text-sm font-medium text-base-content/80 hover:text-base-content"
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/auth/register"
+                className="inline-flex items-center rounded-full bg-black text-white px-5 py-2 text-sm font-semibold shadow-md hover:bg-neutral-900 transition-colors"
+              >
+                Sign up free
+              </Link>
             </>
-          )}
-          {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
-            <li><NavLink to="/app/members" className={navLinkClass}>Members</NavLink></li>
-          )}
-        </ul>
-      </div>
-
-      <div className="navbar-end gap-2">
-        {!user ? (
-          <>
-            <Link to="/auth/login" className="btn btn-ghost">Login</Link>
-            <Link to="/auth/register" className="btn btn-primary">Get started</Link>
-          </>
-        ) : (
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar placeholder">
-              <div className="bg-primary text-primary-content rounded-full w-10">
-                <span className="text-lg">{user.email?.[0]?.toUpperCase()}</span>
-              </div>
+          ) : (
+            <div className="dropdown dropdown-end">
+              <button
+                tabIndex={0}
+                className="btn btn-ghost btn-circle avatar placeholder border border-base-300"
+              >
+                <div className="bg-black text-white rounded-full w-9">
+                  <span className="text-sm">
+                    {user.email?.[0]?.toUpperCase()}
+                  </span>
+                </div>
+              </button>
+              <ul
+                tabIndex={0}
+                className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-60 p-2 shadow z-[1]"
+              >
+                <li className="menu-title">
+                  <span className="truncate">{user.email}</span>
+                  <span className="badge badge-neutral badge-sm mt-1">
+                    {role || "EMPLOYEE"}
+                  </span>
+                </li>
+                <li>
+                  <NavLink to="/app" className={navLinkClass}>
+                    Dashboard
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/profile" className={navLinkClass}>
+                    Profile
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/settings" className={navLinkClass}>
+                    Settings
+                  </NavLink>
+                </li>
+                <li>
+                  <button onClick={logout} className="text-error">
+                    Logout
+                  </button>
+                </li>
+              </ul>
             </div>
+          )}
 
-            <ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-60 p-2 shadow z-[1]">
-              <li className="menu-title">
-                <span className="truncate">{user.email}</span>
-                <span className="badge badge-primary badge-sm mt-1">{role || "EMPLOYEE"}</span>
-              </li>
-              <li><NavLink to="/app" className={navLinkClass}>Dashboard</NavLink></li>
-              <li><NavLink to="/profile" className={navLinkClass}>Profile</NavLink></li>
-              <li><NavLink to="/settings" className={navLinkClass}>Settings</NavLink></li>
-              <li><button onClick={logout} className="text-error">Logout</button></li>
-            </ul>
+          {/* Mobile menu button */}
+          <div className="lg:hidden">
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="btn btn-ghost btn-circle">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </label>
+              <ul
+                tabIndex={0}
+                className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-[1]"
+              >
+                <li>
+                  <NavLink to="/" className={navLinkClass}>
+                    Home
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/personal" className={navLinkClass}>
+                    Personal
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/business" className={navLinkClass}>
+                    Business
+                  </NavLink>
+                </li>
+                {user && (
+                  <li>
+                    <NavLink to="/app" className={navLinkClass}>
+                      Dashboard
+                    </NavLink>
+                  </li>
+                )}
+                {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
+                  <li>
+                    <NavLink to="/app/members" className={navLinkClass}>
+                      Employer
+                    </NavLink>
+                  </li>
+                )}
+              </ul>
+            </div>
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </header>
   );
 };
 
