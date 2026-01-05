@@ -18,7 +18,7 @@ const Navbar = () => {
         <div className="navbar-start gap-2">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 rounded-full bg-purple-300 text-white px-4 py-2 text-sm font-semibold shadow-md"
+            className="inline-flex items-center gap-2 rounded-full bg-purple-300 text-black px-4 py-2 text-sm font-semibold shadow-md"
           >
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black font-bold">
               P
