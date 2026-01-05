@@ -12,13 +12,13 @@ const Navbar = () => {
     }`;
 
   return (
-    <header className="sticky top-0 z-50">
-      <div className="navbar max-w-6xl mx-auto px-4 lg:px-0 bg-transparent">
+    <header className="sticky top-0 z-50 bg-white/30 backdrop-blur-md border-b border-white/20">
+      <div className="navbar max-w-6xl mx-auto px-4 lg:px-0">
         {/* Left: logo */}
         <div className="navbar-start gap-2">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 rounded-full bg-black text-white px-4 py-2 text-sm font-semibold shadow-md"
+            className="inline-flex items-center gap-2 rounded-full bg-purple-300 text-white px-4 py-2 text-sm font-semibold shadow-md"
           >
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black font-bold">
               P
@@ -102,19 +102,13 @@ const Navbar = () => {
                   </span>
                 </li>
                 <li>
-                  <NavLink to="/app" className={navLinkClass}>
-                    Dashboard
-                  </NavLink>
+                  <NavLink to="/app">Dashboard</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/profile" className={navLinkClass}>
-                    Profile
-                  </NavLink>
+                  <NavLink to="/profile">Profile</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/settings" className={navLinkClass}>
-                    Settings
-                  </NavLink>
+                  <NavLink to="/settings">Settings</NavLink>
                 </li>
                 <li>
                   <button onClick={logout} className="text-error">
@@ -149,32 +143,22 @@ const Navbar = () => {
                 className="menu menu-sm dropdown-content bg-base-100 rounded-box mt-3 w-52 p-2 shadow z-[1]"
               >
                 <li>
-                  <NavLink to="/" className={navLinkClass}>
-                    Home
-                  </NavLink>
+                  <NavLink to="/">Home</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/personal" className={navLinkClass}>
-                    Personal
-                  </NavLink>
+                  <NavLink to="/personal">Personal</NavLink>
                 </li>
                 <li>
-                  <NavLink to="/business" className={navLinkClass}>
-                    Business
-                  </NavLink>
+                  <NavLink to="/business">Business</NavLink>
                 </li>
                 {user && (
                   <li>
-                    <NavLink to="/app" className={navLinkClass}>
-                      Dashboard
-                    </NavLink>
+                    <NavLink to="/app">Dashboard</NavLink>
                   </li>
                 )}
                 {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
                   <li>
-                    <NavLink to="/app/members" className={navLinkClass}>
-                      Employer
-                    </NavLink>
+                    <NavLink to="/app/members">Employer</NavLink>
                   </li>
                 )}
               </ul>
