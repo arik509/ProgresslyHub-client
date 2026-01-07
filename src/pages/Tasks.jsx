@@ -1,14 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { listTasks, createTask, updateTask, deleteTask } from "../api/tasksApi";
+import {
+  listPersonalTasks,
+  createPersonalTask,
+  updatePersonalTask,
+  deletePersonalTask,
+} from "../api/personalTasksApi";
 
 const Tasks = () => {
-  const { role, officeId, user } = useAuth();
+  const { role, officeId, user, mode } = useAuth();
 
-  const canManageTasks = useMemo(
-    () => ["CEO", "ADMIN", "MANAGER"].includes(role),
-    [role]
-  );
+  // In PERSONAL mode, user can always manage tasks
+  // In TEAM mode, only CEO/ADMIN/MANAGER can create/delete tasks
+  const canManageTasks = useMemo(() => {
+    if (mode === "PERSONAL") return true;
+    return ["CEO", "ADMIN", "MANAGER"].includes(role);
+  }, [role, mode]);
 
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,11 +49,19 @@ const Tasks = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const loadTasks = async () => {
-    if (!officeId) return;
     setPageError("");
     setLoading(true);
     try {
-      const data = await listTasks(officeId);
+      let data;
+      if (mode === "PERSONAL") {
+        data = await listPersonalTasks();
+      } else if (mode === "TEAM" && officeId) {
+        data = await listTasks(officeId);
+      } else {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
       setTasks(data?.tasks || []);
     } catch (e) {
       setPageError(e.message || "Failed to load tasks.");
@@ -55,20 +71,31 @@ const Tasks = () => {
   };
 
   useEffect(() => {
-    loadTasks();
+    if (mode) {
+      loadTasks();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [officeId]);
+  }, [mode, officeId]);
 
   const onCreateTask = async (e) => {
     e.preventDefault();
     setCreateError("");
 
-    if (!officeId) return setCreateError("No officeId found.");
     if (!createForm.title) return setCreateError("Task title is required.");
+
+    if (mode === "TEAM" && !officeId) {
+      return setCreateError("No officeId found.");
+    }
 
     setSaving(true);
     try {
-      await createTask(officeId, createForm);
+      if (mode === "PERSONAL") {
+        // In personal mode, ignore assignedTo field
+        const { assignedTo, ...personalTaskData } = createForm;
+        await createPersonalTask(personalTaskData);
+      } else {
+        await createTask(officeId, createForm);
+      }
       setOpenCreate(false);
       setCreateForm({
         title: "",
@@ -94,7 +121,12 @@ const Tasks = () => {
 
     setSaving(true);
     try {
-      await updateTask(officeId, editingTask._id, editForm);
+      if (mode === "PERSONAL") {
+        const { assignedTo, ...personalTaskData } = editForm;
+        await updatePersonalTask(editingTask._id, personalTaskData);
+      } else {
+        await updateTask(officeId, editingTask._id, editForm);
+      }
       setEditingTask(null);
       await loadTasks();
     } catch (e2) {
@@ -109,7 +141,11 @@ const Tasks = () => {
 
     setSaving(true);
     try {
-      await deleteTask(officeId, deleteConfirm._id);
+      if (mode === "PERSONAL") {
+        await deletePersonalTask(deleteConfirm._id);
+      } else {
+        await deleteTask(officeId, deleteConfirm._id);
+      }
       setDeleteConfirm(null);
       await loadTasks();
     } catch (e) {
@@ -119,11 +155,15 @@ const Tasks = () => {
     }
   };
 
-  // Quick status update for employees
+  // Quick status update
   const onQuickStatusUpdate = async (task, newStatus) => {
     setSaving(true);
     try {
-      await updateTask(officeId, task._id, { status: newStatus });
+      if (mode === "PERSONAL") {
+        await updatePersonalTask(task._id, { status: newStatus });
+      } else {
+        await updateTask(officeId, task._id, { status: newStatus });
+      }
       await loadTasks();
     } catch (e) {
       setPageError(e.message || "Failed to update status.");
@@ -158,8 +198,9 @@ const Tasks = () => {
     }
   };
 
-  // Check if task is assigned to current user
+  // Check if task is assigned to current user (only in TEAM mode)
   const isMyTask = (task) => {
+    if (mode === "PERSONAL") return true; // All personal tasks are "my tasks"
     return task.assignedTo === user?.email || task.assignedTo === user?.uid;
   };
 
@@ -169,8 +210,17 @@ const Tasks = () => {
         <div>
           <h1 className="text-3xl font-extrabold">Tasks</h1>
           <p className="text-base-content/70">
-            Your role: <span className="font-semibold">{role || "—"}</span> | Office:{" "}
-            <span className="font-semibold">{officeId || "—"}</span>
+            {mode === "PERSONAL" ? (
+              <>
+                <span className="badge badge-primary badge-sm mr-2">🧑 Personal</span>
+                Your personal tasks
+              </>
+            ) : (
+              <>
+                Your role: <span className="font-semibold">{role || "—"}</span> | Office:{" "}
+                <span className="font-semibold">{officeId || "—"}</span>
+              </>
+            )}
           </p>
         </div>
 
@@ -181,7 +231,7 @@ const Tasks = () => {
         )}
       </div>
 
-      {!officeId && (
+      {mode === "TEAM" && !officeId && (
         <div className="alert alert-warning">
           <span>No officeId found in your account claims. Create an office first.</span>
         </div>
@@ -196,11 +246,13 @@ const Tasks = () => {
       <div className="card bg-base-100 shadow border border-base-300">
         <div className="card-body">
           <div className="flex items-center justify-between">
-            <h2 className="card-title">All tasks</h2>
+            <h2 className="card-title">
+              {mode === "PERSONAL" ? "My Tasks" : "All tasks"}
+            </h2>
             <button
               className="btn btn-ghost btn-sm"
               onClick={loadTasks}
-              disabled={!officeId || loading}
+              disabled={loading || (mode === "TEAM" && !officeId)}
             >
               Refresh
             </button>
@@ -231,17 +283,19 @@ const Tasks = () => {
                       </span>
                     </div>
 
-                    {t.assignedTo && (
+                    {mode === "TEAM" && t.assignedTo && (
                       <p className="text-xs text-base-content/60 mt-2">
                         Assigned: {t.assignedTo}
-                        {isMyTask(t) && <span className="ml-1 badge badge-xs badge-primary">You</span>}
+                        {isMyTask(t) && (
+                          <span className="ml-1 badge badge-xs badge-primary">You</span>
+                        )}
                       </p>
                     )}
 
                     {/* Action buttons */}
                     <div className="card-actions justify-end mt-3 gap-1">
-                      {/* Employees can update status of their tasks */}
-                      {!canManageTasks && isMyTask(t) && t.status !== "DONE" && (
+                      {/* Quick status update (for own tasks or all tasks in personal mode) */}
+                      {((mode === "PERSONAL") || (!canManageTasks && isMyTask(t))) && t.status !== "DONE" && (
                         <div className="dropdown dropdown-end">
                           <button className="btn btn-xs btn-primary" disabled={saving}>
                             Update Status
@@ -272,7 +326,7 @@ const Tasks = () => {
                         </div>
                       )}
 
-                      {/* Managers can edit/delete */}
+                      {/* Edit/Delete (managers in TEAM mode or all in PERSONAL mode) */}
                       {canManageTasks && (
                         <>
                           <button
@@ -305,7 +359,7 @@ const Tasks = () => {
             </div>
           )}
 
-          {!canManageTasks && (
+          {!canManageTasks && mode === "TEAM" && (
             <div className="alert alert-info mt-4">
               <span>Only CEO/ADMIN/MANAGER can create/edit/delete tasks.</span>
             </div>
@@ -313,7 +367,7 @@ const Tasks = () => {
         </div>
       </div>
 
-      {/* Create Modal (Manager only) */}
+      {/* Create Modal */}
       {openCreate && (
         <dialog className="modal modal-open">
           <div className="modal-box">
@@ -362,12 +416,15 @@ const Tasks = () => {
                 <option value="HIGH">HIGH</option>
               </select>
 
-              <input
-                className="input input-bordered w-full"
-                placeholder="Assigned to (email or UID)"
-                value={createForm.assignedTo}
-                onChange={(e) => setCreateForm((p) => ({ ...p, assignedTo: e.target.value }))}
-              />
+              {/* Only show assignedTo in TEAM mode */}
+              {mode === "TEAM" && (
+                <input
+                  className="input input-bordered w-full"
+                  placeholder="Assigned to (email or UID)"
+                  value={createForm.assignedTo}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, assignedTo: e.target.value }))}
+                />
+              )}
 
               <div className="modal-action">
                 <button
@@ -390,7 +447,7 @@ const Tasks = () => {
         </dialog>
       )}
 
-      {/* Edit Modal (Manager only) */}
+      {/* Edit Modal */}
       {editingTask && (
         <dialog className="modal modal-open">
           <div className="modal-box">
@@ -439,12 +496,15 @@ const Tasks = () => {
                 <option value="HIGH">HIGH</option>
               </select>
 
-              <input
-                className="input input-bordered w-full"
-                placeholder="Assigned to (email or UID)"
-                value={editForm.assignedTo}
-                onChange={(e) => setEditForm((p) => ({ ...p, assignedTo: e.target.value }))}
-              />
+              {/* Only show assignedTo in TEAM mode */}
+              {mode === "TEAM" && (
+                <input
+                  className="input input-bordered w-full"
+                  placeholder="Assigned to (email or UID)"
+                  value={editForm.assignedTo}
+                  onChange={(e) => setEditForm((p) => ({ ...p, assignedTo: e.target.value }))}
+                />
+              )}
 
               <div className="modal-action">
                 <button
@@ -461,17 +521,13 @@ const Tasks = () => {
             </form>
           </div>
 
-          <form
-            method="dialog"
-            className="modal-backdrop"
-            onClick={() => setEditingTask(null)}
-          >
+          <form method="dialog" className="modal-backdrop" onClick={() => setEditingTask(null)}>
             <button>close</button>
           </form>
         </dialog>
       )}
 
-      {/* Delete Confirmation (Manager only) */}
+      {/* Delete Confirmation */}
       {deleteConfirm && (
         <dialog className="modal modal-open">
           <div className="modal-box">

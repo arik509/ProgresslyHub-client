@@ -1,5 +1,5 @@
 import { getIdToken } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../firebase/firebase"; // ✅ Fixed import path
 
 const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 

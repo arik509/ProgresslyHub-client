@@ -3,11 +3,15 @@ import { useAuth } from "../context/AuthContext";
 import { createOffice } from "../api/officesApi";
 import { listProjects } from "../api/projectsApi";
 import { listTasks } from "../api/tasksApi";
+import { listPersonalProjects } from "../api/personalProjectsApi";
+import { listPersonalTasks } from "../api/personalTasksApi";
 import { refreshClaims } from "../api/refreshClaims";
 import { useNavigate } from "react-router-dom";
+import { initializeTeamMode } from "../api/teamApi";
+import { initializePersonalMode } from "../api/personalProjectsApi";
 
 const Dashboard = () => {
-  const { user, officeId, role } = useAuth();
+  const { user, officeId, role, mode, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [showCreateOffice, setShowCreateOffice] = useState(false);
@@ -24,22 +28,73 @@ const Dashboard = () => {
   });
 
   const [recentActivity, setRecentActivity] = useState([]);
-  const [activityLoading, setActivityLoading] = useState(false);
 
-  // Load stats when officeId is available
+  // Redirect to mode selection if no mode is set
   useEffect(() => {
-    if (officeId) {
-      loadStats();
+    if (!authLoading && !mode) {
+      navigate("/mode-selection", { replace: true });
     }
-  }, [officeId]);
+  }, [mode, authLoading, navigate]);
 
-  const loadStats = async () => {
+  // Load stats when mode/officeId changes
+  useEffect(() => {
+    if (mode === "PERSONAL") {
+      loadPersonalStats();
+    } else if (mode === "TEAM" && officeId) {
+      loadTeamStats();
+    }
+  }, [mode, officeId]);
+
+  // Personal Mode Stats
+  const loadPersonalStats = async () => {
+    setStats((prev) => ({ ...prev, loading: true }));
+
+    try {
+      const [projectsData, tasksData] = await Promise.all([
+        listPersonalProjects(),
+        listPersonalTasks(),
+      ]);
+
+      const projects = projectsData?.projects || [];
+      const tasks = tasksData?.tasks || [];
+
+      const activeProjects = projects.filter(
+        (p) => p.status === "ACTIVE" || p.status === "PLANNING"
+      ).length;
+
+      const openTasks = tasks.filter(
+        (t) => t.status === "TODO" || t.status === "IN_PROGRESS"
+      ).length;
+
+      setStats({
+        activeProjects,
+        openTasks,
+        myTasks: openTasks, // In personal mode, all tasks are "my tasks"
+        loading: false,
+      });
+
+      // Build recent activity
+      const activity = [
+        ...projects.map((p) => ({ ...p, type: "Project" })),
+        ...tasks.map((t) => ({ ...t, type: "Task", name: t.title })),
+      ]
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        .slice(0, 5);
+
+      setRecentActivity(activity);
+    } catch (err) {
+      console.error("Failed to load personal stats:", err);
+      setStats((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Team Mode Stats
+  const loadTeamStats = async () => {
     if (!officeId) return;
 
     setStats((prev) => ({ ...prev, loading: true }));
 
     try {
-      // Fetch projects and tasks in parallel
       const [projectsData, tasksData] = await Promise.all([
         listProjects(officeId),
         listTasks(officeId),
@@ -48,7 +103,6 @@ const Dashboard = () => {
       const projects = projectsData?.projects || [];
       const tasks = tasksData?.tasks || [];
 
-      // Calculate stats
       const activeProjects = projects.filter(
         (p) => p.status === "ACTIVE" || p.status === "PLANNING"
       ).length;
@@ -70,17 +124,17 @@ const Dashboard = () => {
         loading: false,
       });
 
-      // Build recent activity (combine projects and tasks, sort by updatedAt)
+      // Build recent activity
       const activity = [
         ...projects.map((p) => ({ ...p, type: "Project" })),
-        ...tasks.map((t) => ({ ...t, type: "Task", title: t.title, name: t.title })),
+        ...tasks.map((t) => ({ ...t, type: "Task", name: t.title })),
       ]
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-        .slice(0, 5); // Show last 5 items
+        .slice(0, 5);
 
       setRecentActivity(activity);
     } catch (err) {
-      console.error("Failed to load stats:", err);
+      console.error("Failed to load team stats:", err);
       setStats((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -119,6 +173,40 @@ const Dashboard = () => {
     return date.toLocaleDateString();
   };
 
+  const handleSwitchMode = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      if (mode === "PERSONAL") {
+        // Switch to Team mode
+        await initializeTeamMode();
+      } else {
+        // Switch to Personal mode
+        await initializePersonalMode();
+      }
+      await refreshClaims(user);
+      window.location.reload(); // Force full reload to update everything
+    } catch (e) {
+      setError(e.message);
+      // If switching to team and no office found, navigate to mode selection
+      if (e.message.includes("No office membership")) {
+        navigate("/mode-selection");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
+  }
+
+  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -127,8 +215,21 @@ const Dashboard = () => {
           <p className="text-base-content/70 mt-1">
             Welcome back, {user?.email || "User"}
           </p>
+          {mode && (
+            <div className="mt-2">
+              <span className={`badge ${mode === "PERSONAL" ? "badge-primary" : "badge-secondary"}`}>
+                {mode === "PERSONAL" ? "🧑 Personal Mode" : "👥 Team Mode"}
+              </span>
+              {mode === "TEAM" && role && (
+                <span className="badge badge-outline ml-2">{role}</span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
+          <button className="btn btn-sm btn-ghost" onClick={handleSwitchMode}>
+            Switch Mode
+          </button>
           <button className="btn btn-primary" onClick={() => navigate("/app/projects")}>
             Projects
           </button>
@@ -138,8 +239,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Show create office prompt if no officeId */}
-      {!officeId && (
+      {/* Show create office prompt if in TEAM mode but no officeId */}
+      {mode === "TEAM" && !officeId && (
         <div className="alert alert-warning">
           <div className="flex-1">
             <svg
@@ -157,7 +258,7 @@ const Dashboard = () => {
             </svg>
             <div>
               <h3 className="font-bold">No office found</h3>
-              <div className="text-sm">You need to create an office to use Projects and Tasks.</div>
+              <div className="text-sm">You need to create an office to use Team mode.</div>
             </div>
           </div>
           <button className="btn btn-sm btn-primary" onClick={() => setShowCreateOffice(true)}>
@@ -166,7 +267,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Stats Cards - Now Dynamic */}
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card bg-base-100 shadow border border-base-300">
           <div className="card-body">
@@ -194,13 +295,17 @@ const Dashboard = () => {
 
         <div className="card bg-base-100 shadow border border-base-300">
           <div className="card-body">
-            <h3 className="text-sm text-base-content/70">My Open Tasks</h3>
+            <h3 className="text-sm text-base-content/70">
+              {mode === "PERSONAL" ? "My Tasks" : "Assigned to Me"}
+            </h3>
             {stats.loading ? (
               <span className="loading loading-spinner loading-md text-accent"></span>
             ) : (
               <p className="text-4xl font-bold text-accent">{stats.myTasks}</p>
             )}
-            <p className="text-xs text-base-content/60">Assigned to you</p>
+            <p className="text-xs text-base-content/60">
+              {mode === "PERSONAL" ? "All your tasks" : "Assigned to you"}
+            </p>
           </div>
         </div>
       </div>
@@ -212,7 +317,7 @@ const Dashboard = () => {
             <h2 className="card-title">My Focus</h2>
             <p className="text-base-content/70">
               You have <strong>{stats.myTasks}</strong> open task{stats.myTasks !== 1 ? "s" : ""}{" "}
-              assigned to you.
+              {mode === "PERSONAL" ? "to complete" : "assigned to you"}.
             </p>
             <div className="card-actions justify-end mt-4">
               <button className="btn btn-primary btn-sm" onClick={() => navigate("/app/tasks")}>
@@ -241,14 +346,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Activity - Now Dynamic */}
+      {/* Recent Activity */}
       <div className="card bg-base-100 shadow border border-base-300">
         <div className="card-body">
           <div className="flex items-center justify-between">
             <h2 className="card-title">Recent activity</h2>
             <button
               className="btn btn-ghost btn-sm"
-              onClick={loadStats}
+              onClick={mode === "PERSONAL" ? loadPersonalStats : loadTeamStats}
               disabled={stats.loading}
             >
               {stats.loading ? (
