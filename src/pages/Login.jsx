@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { FaUser, FaUsers } from "react-icons/fa";
 
 const Login = () => {
   const navigate = useNavigate();
 
+  const [loginMode, setLoginMode] = useState(null); // 'personal' or 'team'
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,7 +22,26 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, form.email, form.password);
+      const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
+      const user = userCredential.user;
+
+      // Check if user document exists in Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if (!userDoc.exists()) {
+        // First time login - create user document with selected mode
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          mode: loginMode,
+          role: loginMode === 'team' ? 'EMPLOYEE' : null,
+          createdAt: new Date().toISOString(),
+        });
+      } else {
+        // User exists - optionally update mode if needed
+        const userData = userDoc.data();
+        // You can add logic here to handle mode changes if needed
+      }
+
       navigate("/app", { replace: true });
     } catch (err) {
       setError(err.message || "Login failed.");
@@ -28,13 +50,35 @@ const Login = () => {
     }
   };
 
-  // Google Sign-In Handler [web:616]
+  // Google Sign-In Handler
   const onGoogleSignIn = async () => {
+    if (!loginMode) {
+      setError("Please select a login type (Personal or Team)");
+      return;
+    }
+
     setError("");
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Check if user document exists
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+
+      if (!userDoc.exists()) {
+        // New Google user - create document with selected mode
+        await setDoc(doc(db, "users", user.uid), {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          mode: loginMode,
+          role: loginMode === 'team' ? 'EMPLOYEE' : null,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
       navigate("/app", { replace: true });
     } catch (err) {
       setError(err.message || "Google sign-in failed.");
@@ -43,13 +87,109 @@ const Login = () => {
     }
   };
 
+  // If no mode selected, show mode selection screen
+  if (!loginMode) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10 bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
+        <div className="card w-full max-w-4xl bg-base-100 shadow-xl border border-base-300">
+          <div className="card-body p-8 lg:p-12">
+            <h2 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+              Welcome to ProgresslyHub
+            </h2>
+            <p className="text-center text-base-content/70 mb-10 text-lg">
+              Choose how you want to login
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Personal Login Option */}
+              <button
+                onClick={() => setLoginMode('personal')}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 p-1 transition-all hover:scale-105 hover:shadow-2xl"
+              >
+                <div className="relative bg-white rounded-xl p-10 h-full flex flex-col items-center justify-center space-y-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg">
+                    <FaUser className="text-white text-4xl" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-800">Personal</h3>
+                  <p className="text-center text-gray-600 text-base">
+                    Manage your individual tasks and projects
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <span className="badge badge-lg bg-pink-100 text-pink-700 border-pink-200 px-4 py-3">
+                      Solo Work
+                    </span>
+                    <span className="badge badge-lg bg-purple-100 text-purple-700 border-purple-200 px-4 py-3">
+                      Personal Goals
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Team/Office Login Option */}
+              <button
+                onClick={() => setLoginMode('team')}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-1 transition-all hover:scale-105 hover:shadow-2xl"
+              >
+                <div className="relative bg-white rounded-xl p-10 h-full flex flex-col items-center justify-center space-y-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                    <FaUsers className="text-white text-4xl" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-800">Team/Office</h3>
+                  <p className="text-center text-gray-600 text-base">
+                    Collaborate with your team and manage organization
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <span className="badge badge-lg bg-purple-100 text-purple-700 border-purple-200 px-4 py-3">
+                      Team Work
+                    </span>
+                    <span className="badge badge-lg bg-indigo-100 text-indigo-700 border-indigo-200 px-4 py-3">
+                      Collaboration
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <p className="mt-8 text-center text-base text-base-content/70">
+              Don&apos;t have an account?{" "}
+              <Link to="/auth/register" className="link link-primary link-hover font-semibold">
+                Create one
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Login form (shown after mode selection)
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10 bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
       <div className="card w-full max-w-md bg-base-100 shadow-xl border border-base-300">
         <div className="card-body">
+          {/* Mode Indicator */}
+          <div className="text-center mb-4">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+              loginMode === 'personal' 
+                ? 'bg-gradient-to-r from-pink-400 to-purple-500' 
+                : 'bg-gradient-to-r from-purple-500 to-indigo-600'
+            } text-white text-sm font-semibold mb-3 shadow-md`}>
+              {loginMode === 'personal' ? <FaUser /> : <FaUsers />}
+              {loginMode === 'personal' ? 'Personal Login' : 'Team/Office Login'}
+            </div>
+            <button
+              onClick={() => setLoginMode(null)}
+              className="text-xs text-base-content/60 hover:text-base-content underline"
+            >
+              Change login type
+            </button>
+          </div>
+
           <h2 className="card-title text-2xl">Sign in</h2>
           <p className="text-base-content/70">
-            Login to access your office workspace.
+            {loginMode === 'personal' 
+              ? 'Login to access your personal workspace.'
+              : 'Login to access your office workspace.'}
           </p>
 
           {error && (
@@ -67,7 +207,7 @@ const Login = () => {
                 className="input input-bordered w-full"
                 type="email"
                 name="email"
-                placeholder="you@company.com"
+                placeholder={loginMode === 'personal' ? 'you@email.com' : 'you@company.com'}
                 value={form.email}
                 onChange={onChange}
                 required
@@ -92,7 +232,15 @@ const Login = () => {
               />
             </div>
 
-            <button className="btn btn-primary w-full" disabled={loading} type="submit">
+            <button 
+              className={`btn w-full text-white ${
+                loginMode === 'personal'
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 border-0'
+                  : 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 border-0'
+              }`}
+              disabled={loading} 
+              type="submit"
+            >
               {loading ? <span className="loading loading-spinner loading-sm"></span> : "Login"}
             </button>
           </form>

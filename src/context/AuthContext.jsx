@@ -1,16 +1,15 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, getIdTokenResult } from "firebase/auth";
-import { auth } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-
   const [role, setRole] = useState("EMPLOYEE");     // from custom claims
   const [officeId, setOfficeId] = useState(null);   // from custom claims (string)
-  const [mode, setMode] = useState(null);           // NEW: "PERSONAL" or "TEAM"
-
+  const [mode, setMode] = useState(null);           // "personal" or "team"
   const [loading, setLoading] = useState(true);
 
   // Helper function to refresh and extract claims
@@ -29,16 +28,23 @@ export const AuthProvider = ({ children }) => {
 
       const claimRole = tokenResult?.claims?.role;
       const claimOfficeId = tokenResult?.claims?.officeId;
-      const claimMode = tokenResult?.claims?.mode;
 
       setRole(typeof claimRole === "string" ? claimRole : "EMPLOYEE");
       setOfficeId(typeof claimOfficeId === "string" ? claimOfficeId : null);
-      setMode(typeof claimMode === "string" ? claimMode : null);
+
+      // Fetch mode from Firestore (not from custom claims)
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setMode(userData.mode || "personal");
+      } else {
+        setMode("personal"); // Default fallback
+      }
     } catch (e) {
       console.error("Error refreshing claims:", e);
       setRole("EMPLOYEE");
       setOfficeId(null);
-      setMode(null);
+      setMode("personal");
     }
   };
 
@@ -55,21 +61,29 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        // Custom claims are available via ID token result
+        // Get custom claims from token
         const tokenResult = await getIdTokenResult(currentUser);
 
         const claimRole = tokenResult?.claims?.role;
         const claimOfficeId = tokenResult?.claims?.officeId;
-        const claimMode = tokenResult?.claims?.mode;
 
         setRole(typeof claimRole === "string" ? claimRole : "EMPLOYEE");
         setOfficeId(typeof claimOfficeId === "string" ? claimOfficeId : null);
-        setMode(typeof claimMode === "string" ? claimMode : null);
+
+        // Fetch mode from Firestore
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setMode(userData.mode || "personal");
+        } else {
+          // If no document exists, default to personal
+          setMode("personal");
+        }
       } catch (e) {
-        console.error("Error getting claims:", e);
+        console.error("Error getting user data:", e);
         setRole("EMPLOYEE");
         setOfficeId(null);
-        setMode(null);
+        setMode("personal");
       } finally {
         setLoading(false);
       }
@@ -78,7 +92,10 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const logout = () => signOut(auth);
+  const logout = () => {
+    setMode(null);
+    return signOut(auth);
+  };
 
   return (
     <AuthContext.Provider 
@@ -86,10 +103,10 @@ export const AuthProvider = ({ children }) => {
         user, 
         role, 
         officeId, 
-        mode,           // NEW: Export mode
+        mode,           // "personal" or "team"
         loading, 
         logout, 
-        refreshClaims   // NEW: Export refresh function
+        refreshClaims   // Refresh function
       }}
     >
       {children}
@@ -97,4 +114,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+};

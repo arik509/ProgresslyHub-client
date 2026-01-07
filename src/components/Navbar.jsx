@@ -44,17 +44,29 @@ const Navbar = () => {
                   Business
                 </NavLink>
               </li>
+              {user && (
+                <>
+                  <li>
+                    <NavLink to="/app" className={navLinkClass}>
+                      Dashboard
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/app/projects" className={navLinkClass}>
+                      Projects
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink to="/app/tasks" className={navLinkClass}>
+                      Tasks
+                    </NavLink>
+                  </li>
+                </>
+              )}
               {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
                 <li>
                   <NavLink to="/app/members" className={navLinkClass}>
                     Employer
-                  </NavLink>
-                </li>
-              )}
-              {user && (
-                <li>
-                  <NavLink to="/app" className={navLinkClass}>
-                    Dashboard
                   </NavLink>
                 </li>
               )}
@@ -105,6 +117,12 @@ const Navbar = () => {
                   <NavLink to="/app">Dashboard</NavLink>
                 </li>
                 <li>
+                  <NavLink to="/app/projects">Projects</NavLink>
+                </li>
+                <li>
+                  <NavLink to="/app/tasks">Tasks</NavLink>
+                </li>
+                <li>
                   <NavLink to="/profile">Profile</NavLink>
                 </li>
                 <li>
@@ -152,9 +170,17 @@ const Navbar = () => {
                   <NavLink to="/business">Business</NavLink>
                 </li>
                 {user && (
-                  <li>
-                    <NavLink to="/app">Dashboard</NavLink>
-                  </li>
+                  <>
+                    <li>
+                      <NavLink to="/app">Dashboard</NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/app/projects">Projects</NavLink>
+                    </li>
+                    <li>
+                      <NavLink to="/app/tasks">Tasks</NavLink>
+                    </li>
+                  </>
                 )}
                 {user && ["CEO", "ADMIN", "MANAGER"].includes(role) && (
                   <li>
