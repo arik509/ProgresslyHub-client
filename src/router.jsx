@@ -13,7 +13,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
-import ModeSelection from "./pages/ModeSelection";
+// Removed: import ModeSelection from "./pages/ModeSelection";
 
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
@@ -37,14 +37,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Mode Selection - Protected route (user must be logged in)
-  {
-    path: "/mode-selection",
-    Component: PrivateOutlet,
-    children: [
-      { index: true, Component: ModeSelection },
-    ],
-  },
+  // Removed: Mode Selection route - no longer needed
 
   {
     path: "/app",

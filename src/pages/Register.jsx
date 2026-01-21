@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { FaUser, FaUsers } from "react-icons/fa";
 
 const Register = () => {
   const navigate = useNavigate();
 
+  const [registerMode, setRegisterMode] = useState(null); // 'personal' or 'team'
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -37,6 +40,15 @@ const Register = () => {
         await updateProfile(cred.user, { displayName: form.name });
       }
 
+      // Save user data with mode to Firestore
+      await setDoc(doc(db, "users", cred.user.uid), {
+        displayName: form.name,
+        email: form.email,
+        mode: registerMode,
+        role: registerMode === 'team' ? 'EMPLOYEE' : null,
+        createdAt: new Date().toISOString(),
+      });
+
       navigate("/app", { replace: true });
     } catch (err) {
       setError(err.message || "Registration failed.");
@@ -45,13 +57,30 @@ const Register = () => {
     }
   };
 
-  // Google Sign-Up Handler [web:616]
+  // Google Sign-Up Handler
   const onGoogleSignUp = async () => {
+    if (!registerMode) {
+      setError("Please select a registration type (Personal or Team)");
+      return;
+    }
+
     setError("");
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Save user data with mode to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        mode: registerMode,
+        role: registerMode === 'team' ? 'EMPLOYEE' : null,
+        createdAt: new Date().toISOString(),
+      });
+
       navigate("/app", { replace: true });
     } catch (err) {
       setError(err.message || "Google sign-up failed.");
@@ -60,13 +89,109 @@ const Register = () => {
     }
   };
 
+  // If no mode selected, show mode selection screen
+  if (!registerMode) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10 bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
+        <div className="card w-full max-w-4xl bg-base-100 shadow-xl border border-base-300">
+          <div className="card-body p-8 lg:p-12">
+            <h2 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+              Join ProgresslyHub
+            </h2>
+            <p className="text-center text-base-content/70 mb-10 text-lg">
+              Choose how you want to get started
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Personal Registration Option */}
+              <button
+                onClick={() => setRegisterMode('personal')}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 p-1 transition-all hover:scale-105 hover:shadow-2xl"
+              >
+                <div className="relative bg-white rounded-xl p-10 h-full flex flex-col items-center justify-center space-y-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg">
+                    <FaUser className="text-white text-4xl" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-800">Personal</h3>
+                  <p className="text-center text-gray-600 text-base">
+                    Manage your individual tasks and projects
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <span className="badge badge-lg bg-pink-100 text-pink-700 border-pink-200 px-4 py-3">
+                      Solo Work
+                    </span>
+                    <span className="badge badge-lg bg-purple-100 text-purple-700 border-purple-200 px-4 py-3">
+                      Personal Goals
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Team/Office Registration Option */}
+              <button
+                onClick={() => setRegisterMode('team')}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-1 transition-all hover:scale-105 hover:shadow-2xl"
+              >
+                <div className="relative bg-white rounded-xl p-10 h-full flex flex-col items-center justify-center space-y-6">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                    <FaUsers className="text-white text-4xl" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-800">Team/Office</h3>
+                  <p className="text-center text-gray-600 text-base">
+                    Collaborate with your team and manage organization
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <span className="badge badge-lg bg-purple-100 text-purple-700 border-purple-200 px-4 py-3">
+                      Team Work
+                    </span>
+                    <span className="badge badge-lg bg-indigo-100 text-indigo-700 border-indigo-200 px-4 py-3">
+                      Collaboration
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <p className="mt-8 text-center text-base text-base-content/70">
+              Already have an account?{" "}
+              <Link to="/auth/login" className="link link-primary link-hover font-semibold">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Registration form (shown after mode selection)
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10">
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-10 bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100">
       <div className="card w-full max-w-md bg-base-100 shadow-xl border border-base-300">
         <div className="card-body">
+          {/* Mode Indicator */}
+          <div className="text-center mb-4">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+              registerMode === 'personal' 
+                ? 'bg-gradient-to-r from-pink-400 to-purple-500' 
+                : 'bg-gradient-to-r from-purple-500 to-indigo-600'
+            } text-white text-sm font-semibold mb-3 shadow-md`}>
+              {registerMode === 'personal' ? <FaUser /> : <FaUsers />}
+              {registerMode === 'personal' ? 'Personal Account' : 'Team/Office Account'}
+            </div>
+            <button
+              onClick={() => setRegisterMode(null)}
+              className="text-xs text-base-content/60 hover:text-base-content underline"
+            >
+              Change account type
+            </button>
+          </div>
+
           <h2 className="card-title text-2xl">Create account</h2>
           <p className="text-base-content/70">
-            Start using ProgresslyHub for your office.
+            {registerMode === 'personal' 
+              ? 'Start managing your personal tasks and projects.'
+              : 'Start using ProgresslyHub for your office.'}
           </p>
 
           {error && (
@@ -99,7 +224,7 @@ const Register = () => {
                 className="input input-bordered w-full"
                 type="email"
                 name="email"
-                placeholder="you@company.com"
+                placeholder={registerMode === 'personal' ? 'you@email.com' : 'you@company.com'}
                 value={form.email}
                 onChange={onChange}
                 required
@@ -138,7 +263,15 @@ const Register = () => {
               />
             </div>
 
-            <button className="btn btn-primary w-full" disabled={loading} type="submit">
+            <button 
+              className={`btn w-full text-white ${
+                registerMode === 'personal'
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 border-0'
+                  : 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 border-0'
+              }`}
+              disabled={loading} 
+              type="submit"
+            >
               {loading ? <span className="loading loading-spinner loading-sm"></span> : "Register"}
             </button>
           </form>
