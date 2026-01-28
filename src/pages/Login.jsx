@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth, db } from "../firebase/firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth } from "../firebase/firebase";
 import { FaUser, FaUsers } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { refreshClaims } = useAuth();
 
   const [loginMode, setLoginMode] = useState(null); // 'personal' or 'team'
   const [form, setForm] = useState({ email: "", password: "" });
@@ -25,22 +26,26 @@ const Login = () => {
       const userCredential = await signInWithEmailAndPassword(auth, form.email, form.password);
       const user = userCredential.user;
 
-      // Check if user document exists in Firestore
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      // Initialize mode via backend API
+      const token = await user.getIdToken();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const endpoint = loginMode === 'personal' ? '/api/personal/initialize' : '/api/team/initialize';
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (!userDoc.exists()) {
-        // First time login - create user document with selected mode
-        await setDoc(doc(db, "users", user.uid), {
-          email: user.email,
-          mode: loginMode,
-          role: loginMode === 'team' ? 'EMPLOYEE' : null,
-          createdAt: new Date().toISOString(),
-        });
-      } else {
-        // User exists - optionally update mode if needed
-        const userData = userDoc.data();
-        // You can add logic here to handle mode changes if needed
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to initialize mode');
       }
+
+      // Explicitly refresh claims to update AuthContext state
+      await refreshClaims(user);
 
       navigate("/app", { replace: true });
     } catch (err) {
@@ -64,20 +69,26 @@ const Login = () => {
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
 
-      // Check if user document exists
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      // Initialize mode via backend API
+      const token = await user.getIdToken();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const endpoint = loginMode === 'personal' ? '/api/personal/initialize' : '/api/team/initialize';
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (!userDoc.exists()) {
-        // New Google user - create document with selected mode
-        await setDoc(doc(db, "users", user.uid), {
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          mode: loginMode,
-          role: loginMode === 'team' ? 'EMPLOYEE' : null,
-          createdAt: new Date().toISOString(),
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to initialize mode');
       }
+
+      // Explicitly refresh claims to update AuthContext state
+      await refreshClaims(user);
 
       navigate("/app", { replace: true });
     } catch (err) {

@@ -1,92 +1,92 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, getIdTokenResult } from "firebase/auth";
-import { auth, db } from "../firebase/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { auth } from "../firebase/firebase";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState("EMPLOYEE");     // from custom claims
-  const [officeId, setOfficeId] = useState(null);   // from custom claims (string)
-  const [mode, setMode] = useState(null);           // "personal" or "team"
+  const [role, setRole] = useState("EMPLOYEE");
+  const [officeId, setOfficeId] = useState(null);
+  const [mode, setMode] = useState(() => localStorage.getItem("app_mode") || null); // Initialize from localStorage
   const [loading, setLoading] = useState(true);
 
-  // Helper function to refresh and extract claims
-  const refreshClaims = async (currentUser) => {
+  // Helper to fetch and sync user data
+  const fetchUserData = async (currentUser) => {
     if (!currentUser) {
       setRole("EMPLOYEE");
       setOfficeId(null);
       setMode(null);
+      localStorage.removeItem("app_mode");
       return;
     }
 
     try {
-      // Force refresh token to get latest custom claims
-      await currentUser.getIdToken(true);
-      const tokenResult = await getIdTokenResult(currentUser);
+      // 1. Get Custom Claims (Fastest)
+      const tokenResult = await getIdTokenResult(currentUser, true); // Force refresh
+      const Crole = tokenResult?.claims?.role;
+      const CofficeId = tokenResult?.claims?.officeId;
+      const Cmode = tokenResult?.claims?.mode;
 
-      const claimRole = tokenResult?.claims?.role;
-      const claimOfficeId = tokenResult?.claims?.officeId;
+      setRole(typeof Crole === "string" ? Crole : "EMPLOYEE");
+      setOfficeId(typeof CofficeId === "string" ? CofficeId : null);
 
-      setRole(typeof claimRole === "string" ? claimRole : "EMPLOYEE");
-      setOfficeId(typeof claimOfficeId === "string" ? claimOfficeId : null);
-
-      // Fetch mode from Firestore (not from custom claims)
-      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setMode(userData.mode || "personal");
-      } else {
-        setMode("personal"); // Default fallback
+      // 2. Fetch from MongoDB (Source of Truth) because claims might be stale
+      try {
+        const token = await currentUser.getIdToken();
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          const dbMode = userData.mode;
+          if (dbMode) {
+            setMode(dbMode);
+            localStorage.setItem("app_mode", dbMode);
+          } else {
+            // If DB has no mode, fallback to claim or null
+            const finalMode = typeof Cmode === "string" ? Cmode : null;
+            setMode(finalMode);
+            if(finalMode) localStorage.setItem("app_mode", finalMode);
+          }
+        } else {
+           // API failed, fallback to claims
+           const finalMode = typeof Cmode === "string" ? Cmode : null;
+           setMode(finalMode);
+           if(finalMode) localStorage.setItem("app_mode", finalMode);
+        }
+      } catch (apiError) {
+        console.error("API Error:", apiError);
+        const finalMode = typeof Cmode === "string" ? Cmode : null;
+        setMode(finalMode);
+        if(finalMode) localStorage.setItem("app_mode", finalMode);
       }
     } catch (e) {
-      console.error("Error refreshing claims:", e);
-      setRole("EMPLOYEE");
-      setOfficeId(null);
-      setMode("personal");
+      console.error("Auth Error:", e);
+      // Don't clear state on transient errors, just log
     }
+  };
+
+  const refreshClaims = async (currentUser) => {
+    // Wrapper for manual refresh
+    await fetchUserData(currentUser || user);
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser || null);
-
-      if (!currentUser) {
+      setUser(currentUser);
+      
+      if (currentUser) {
+        await fetchUserData(currentUser);
+      } else {
         setRole("EMPLOYEE");
         setOfficeId(null);
         setMode(null);
-        setLoading(false);
-        return;
+        localStorage.removeItem("app_mode");
       }
-
-      try {
-        // Get custom claims from token
-        const tokenResult = await getIdTokenResult(currentUser);
-
-        const claimRole = tokenResult?.claims?.role;
-        const claimOfficeId = tokenResult?.claims?.officeId;
-
-        setRole(typeof claimRole === "string" ? claimRole : "EMPLOYEE");
-        setOfficeId(typeof claimOfficeId === "string" ? claimOfficeId : null);
-
-        // Fetch mode from Firestore
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setMode(userData.mode || "personal");
-        } else {
-          // If no document exists, default to personal
-          setMode("personal");
-        }
-      } catch (e) {
-        console.error("Error getting user data:", e);
-        setRole("EMPLOYEE");
-        setOfficeId(null);
-        setMode("personal");
-      } finally {
-        setLoading(false);
-      }
+      
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -94,19 +94,14 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setMode(null);
+    localStorage.removeItem("app_mode");
     return signOut(auth);
   };
 
   return (
     <AuthContext.Provider 
       value={{ 
-        user, 
-        role, 
-        officeId, 
-        mode,           // "personal" or "team"
-        loading, 
-        logout, 
-        refreshClaims   // Refresh function
+        user, role, officeId, mode, loading, logout, refreshClaims 
       }}
     >
       {children}

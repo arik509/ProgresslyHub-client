@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth, db } from "../firebase/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { auth } from "../firebase/firebase";
 import { FaUser, FaUsers } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { refreshClaims } = useAuth();
 
   const [registerMode, setRegisterMode] = useState(null); // 'personal' or 'team'
   const [form, setForm] = useState({
@@ -40,14 +41,26 @@ const Register = () => {
         await updateProfile(cred.user, { displayName: form.name });
       }
 
-      // Save user data with mode to Firestore
-      await setDoc(doc(db, "users", cred.user.uid), {
-        displayName: form.name,
-        email: form.email,
-        mode: registerMode,
-        role: registerMode === 'team' ? 'EMPLOYEE' : null,
-        createdAt: new Date().toISOString(),
+      // Initialize mode via backend API
+      const token = await cred.user.getIdToken();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const endpoint = registerMode === 'personal' ? '/api/personal/initialize' : '/api/team/initialize';
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to initialize mode');
+      }
+
+      // Explicitly refresh claims to update AuthContext state
+      await refreshClaims(cred.user);
 
       navigate("/app", { replace: true });
     } catch (err) {
@@ -71,15 +84,26 @@ const Register = () => {
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
 
-      // Save user data with mode to Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        mode: registerMode,
-        role: registerMode === 'team' ? 'EMPLOYEE' : null,
-        createdAt: new Date().toISOString(),
+      // Initialize mode via backend API
+      const token = await user.getIdToken();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const endpoint = registerMode === 'personal' ? '/api/personal/initialize' : '/api/team/initialize';
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to initialize mode');
+      }
+
+      // Explicitly refresh claims to update AuthContext state
+      await refreshClaims(user);
 
       navigate("/app", { replace: true });
     } catch (err) {

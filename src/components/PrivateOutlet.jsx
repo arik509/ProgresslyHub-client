@@ -17,11 +17,8 @@ const PrivateOutlet = () => {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  // If user is trying to access /app routes but hasn't selected a mode yet
-  // (Allow /mode-selection itself to be accessed)
-  if (!mode && !location.pathname.includes("/mode-selection") && location.pathname.startsWith("/app")) {
-    return <Navigate to="/mode-selection" replace />;
-  }
+  // Mode is now selected during login, so we don't need to redirect
+  // Users without mode will see helpful messages in the dashboard
 
   return <Outlet />;
 };

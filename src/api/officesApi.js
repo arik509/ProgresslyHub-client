@@ -6,6 +6,12 @@ export const createOffice = (name) =>
     body: JSON.stringify({ name }),
   });
 
+export const joinOffice = (inviteCode) =>
+  apiFetch("/api/offices/join", {
+    method: "POST",
+    body: JSON.stringify({ inviteCode }),
+  });
+
 export const myOffices = () => apiFetch("/api/offices/my");
 
 export const addMember = (officeId, email, role) =>

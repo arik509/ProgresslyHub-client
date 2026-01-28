@@ -208,7 +208,9 @@ const Tasks = () => {
     <div className="space-y-5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-extrabold">Tasks</h1>
+          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+            Tasks
+          </h1>
           <p className="text-base-content/70">
             {mode === "PERSONAL" ? (
               <>
@@ -225,7 +227,10 @@ const Tasks = () => {
         </div>
 
         {canManageTasks && (
-          <button className="btn btn-primary" onClick={() => setOpenCreate(true)}>
+          <button 
+            className="btn bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0" 
+            onClick={() => setOpenCreate(true)}
+          >
             + Create task
           </button>
         )}
@@ -243,7 +248,7 @@ const Tasks = () => {
         </div>
       )}
 
-      <div className="card bg-base-100 shadow border border-base-300">
+      <div className="card bg-base-100 shadow-lg border border-base-300">
         <div className="card-body">
           <div className="flex items-center justify-between">
             <h2 className="card-title">
@@ -267,9 +272,9 @@ const Tasks = () => {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {tasks.map((t) => (
-                <div key={t._id} className="card bg-base-200 shadow-sm border border-base-300">
-                  <div className="card-body p-4">
-                    <h3 className="card-title text-lg">{t.title}</h3>
+                <div key={t._id} className="card bg-gradient-to-br from-pink-50 to-purple-50 dark:from-pink-900/10 dark:to-purple-900/10 shadow-md border border-pink-200 dark:border-pink-800 hover:shadow-xl transition-shadow">
+                  <div className="card-body p-5">
+                    <h3 className="card-title text-lg font-bold text-gray-800 dark:text-gray-100">{t.title}</h3>
                     <p className="text-sm text-base-content/70 line-clamp-2">
                       {t.description || "No description"}
                     </p>
@@ -371,7 +376,9 @@ const Tasks = () => {
       {openCreate && (
         <dialog className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Create task</h3>
+            <h3 className="font-bold text-lg bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+              Create New Task
+            </h3>
 
             {createError && (
               <div className="alert alert-error mt-3">
@@ -434,8 +441,12 @@ const Tasks = () => {
                 >
                   Cancel
                 </button>
-                <button className="btn btn-primary" type="submit" disabled={saving}>
-                  {saving ? "Creating..." : "Create"}
+                <button 
+                  className="btn bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0" 
+                  type="submit" 
+                  disabled={saving}
+                >
+                  {saving ? <span className="loading loading-spinner loading-sm"></span> : "Create"}
                 </button>
               </div>
             </form>
@@ -451,7 +462,9 @@ const Tasks = () => {
       {editingTask && (
         <dialog className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Edit task</h3>
+            <h3 className="font-bold text-lg bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+              Edit Task
+            </h3>
 
             {editError && (
               <div className="alert alert-error mt-3">
@@ -498,12 +511,23 @@ const Tasks = () => {
 
               {/* Only show assignedTo in TEAM mode */}
               {mode === "TEAM" && (
-                <input
-                  className="input input-bordered w-full"
-                  placeholder="Assigned to (email or UID)"
-                  value={editForm.assignedTo}
-                  onChange={(e) => setEditForm((p) => ({ ...p, assignedTo: e.target.value }))}
-                />
+                <div className="form-control w-full">
+                  <label className="label py-0">
+                    <span className="label-text">Assign To</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={editForm.assignedTo}
+                    onChange={(e) => setEditForm((p) => ({ ...p, assignedTo: e.target.value }))}
+                  >
+                    <option value="">Unassigned</option>
+                    {members.map((m) => (
+                      <option key={m.userUid} value={m.userEmail || m.userUid}>
+                         {m.userEmail || "Unknown User"} ({m.role}) {m.userEmail === user?.email ? "(You)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               <div className="modal-action">
@@ -514,8 +538,12 @@ const Tasks = () => {
                 >
                   Cancel
                 </button>
-                <button className="btn btn-primary" type="submit" disabled={saving}>
-                  {saving ? "Saving..." : "Save"}
+                <button 
+                  className="btn bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0" 
+                  type="submit" 
+                  disabled={saving}
+                >
+                  {saving ? <span className="loading loading-spinner loading-sm"></span> : "Save"}
                 </button>
               </div>
             </form>
@@ -531,9 +559,9 @@ const Tasks = () => {
       {deleteConfirm && (
         <dialog className="modal modal-open">
           <div className="modal-box">
-            <h3 className="font-bold text-lg">Delete task?</h3>
+            <h3 className="font-bold text-lg text-error">Delete Task?</h3>
             <p className="py-4">
-              Are you sure you want to delete <strong>{deleteConfirm.title}</strong>? This action
+              Are you sure you want to delete <strong className="text-error">{deleteConfirm.title}</strong>? This action
               cannot be undone.
             </p>
 
@@ -542,7 +570,7 @@ const Tasks = () => {
                 Cancel
               </button>
               <button className="btn btn-error" onClick={onDeleteTask} disabled={saving}>
-                {saving ? "Deleting..." : "Delete"}
+                {saving ? <span className="loading loading-spinner loading-sm"></span> : "Delete"}
               </button>
             </div>
           </div>
