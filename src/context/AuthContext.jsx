@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
       // 2. Fetch from MongoDB (Source of Truth) because claims might be stale
       try {
         const token = await currentUser.getIdToken();
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/user/profile`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://progressly-hub-server.vercel.app'}/api/user/profile`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         

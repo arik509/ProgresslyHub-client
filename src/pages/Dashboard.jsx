@@ -313,7 +313,7 @@ const Dashboard = () => {
                 onClick={async () => {
                    try {
                      const token = await user.getIdToken();
-                     const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/personal/initialize`, {
+                     const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://progressly-hub-server.vercel.app'}/api/personal/initialize`, {
                        method: 'POST',
                        headers: { 'Authorization': `Bearer ${token}` }
                      });
@@ -334,7 +334,7 @@ const Dashboard = () => {
                  onClick={async () => {
                    try {
                      const token = await user.getIdToken();
-                     const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/team/initialize`, {
+                     const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://progressly-hub-server.vercel.app'}/api/team/initialize`, {
                        method: 'POST',
                        headers: { 'Authorization': `Bearer ${token}` }
                      });

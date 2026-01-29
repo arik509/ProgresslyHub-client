@@ -43,7 +43,7 @@ const Register = () => {
 
       // Initialize mode via backend API
       const token = await cred.user.getIdToken();
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://progressly-hub-server.vercel.app';
       const endpoint = registerMode === 'personal' ? '/api/personal/initialize' : '/api/team/initialize';
       
       const response = await fetch(`${apiUrl}${endpoint}`, {
@@ -86,7 +86,7 @@ const Register = () => {
 
       // Initialize mode via backend API
       const token = await user.getIdToken();
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://progressly-hub-server.vercel.app';
       const endpoint = registerMode === 'personal' ? '/api/personal/initialize' : '/api/team/initialize';
       
       const response = await fetch(`${apiUrl}${endpoint}`, {
