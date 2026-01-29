@@ -385,7 +385,125 @@ const Dashboard = () => {
       )}
 
       {/* Stats Cards */}
-      {/* ... (existing stats cards code) ... */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatsCard
+          title="Total Projects"
+          value={stats.totalProjects}
+          icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>}
+          color="bg-primary"
+          loading={stats.loading}
+        />
+        <StatsCard
+          title="Active Projects"
+          value={stats.activeProjects}
+          icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>}
+          color="bg-secondary"
+          loading={stats.loading}
+        />
+        <StatsCard
+          title="Total Tasks"
+          value={stats.totalTasks}
+          icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>}
+          color="bg-accent"
+          loading={stats.loading}
+        />
+        <StatsCard
+          title="Pending Tasks"
+          value={stats.todoTasks + stats.inProgressTasks}
+          icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-8 h-8 stroke-current"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>}
+          color="bg-info"
+          loading={stats.loading}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Projects */}
+        <div className="card bg-base-100 shadow-lg border border-base-300">
+          <div className="card-body">
+            <h2 className="card-title text-lg flex justify-between">
+              Recent Projects
+              <button 
+                className="btn btn-xs btn-ghost"
+                onClick={() => navigate('/app/projects')}
+              >
+                View All
+              </button>
+            </h2>
+            {recentProjects.length > 0 ? (
+              <div className="space-y-3 mt-2">
+                {recentProjects.map(p => (
+                  <div key={p._id} className="flex items-center justify-between p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors cursor-pointer" onClick={() => navigate('/app/projects')}>
+                    <div>
+                      <div className="font-semibold">{p.name}</div>
+                      <div className="text-xs text-base-content/60 line-clamp-1">{p.description}</div>
+                    </div>
+                    <span className={`badge badge-sm ${p.status === 'ACTIVE' ? 'badge-success' : 'badge-ghost'}`}>{p.status}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-base-content/60 text-sm italic py-4 text-center">No recent projects</p>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Tasks */}
+        <div className="card bg-base-100 shadow-lg border border-base-300">
+          <div className="card-body">
+            <h2 className="card-title text-lg flex justify-between">
+              Recent Tasks
+              <button 
+                className="btn btn-xs btn-ghost"
+                onClick={() => navigate('/app/tasks')}
+              >
+                View All
+              </button>
+            </h2>
+            
+            {/* Quick Add Task */}
+            <form onSubmit={handleQuickCreateTask} className="flex gap-2 mb-4">
+              <input 
+                type="text" 
+                placeholder="Add a quick task..." 
+                className="input input-bordered input-sm w-full" 
+                value={quickTaskTitle}
+                onChange={(e) => setQuickTaskTitle(e.target.value)}
+                disabled={creating}
+              />
+              <button type="submit" className="btn btn-sm btn-primary" disabled={creating || !quickTaskTitle.trim()}>
+                {creating ? <span className="loading loading-spinner loading-xs"></span> : "+"}
+              </button>
+            </form>
+
+            {recentTasks.length > 0 ? (
+              <div className="space-y-2">
+                {recentTasks.map(t => (
+                  <div key={t._id} className="flex items-center gap-3 p-2 hover:bg-base-200 rounded-lg group">
+                    <input 
+                      type="checkbox" 
+                      className="checkbox checkbox-sm checkbox-primary"
+                      checked={t.status === 'DONE'}
+                      onChange={() => handleMarkTaskComplete(t)}
+                      disabled={creating}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-medium ${t.status === 'DONE' ? 'line-through text-base-content/50' : ''}`}>
+                        {t.title}
+                      </div>
+                      <div className="text-xs text-base-content/50 flex gap-2">
+                        <span className={`badge badge-xs ${priorityColor(t.priority)}`}>{t.priority}</span>
+                        {t.assignedTo && <span>Assess: {t.assignedTo.split('@')[0]}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-base-content/60 text-sm italic py-4 text-center">No active tasks</p>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Create Office Modal */}
       {showCreateOffice && (
@@ -516,3 +634,23 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+const StatsCard = ({ title, value, icon, color, loading }) => (
+  <div className="card bg-base-100 shadow-xl border-l-4 border-base-300 transform transition-all hover:scale-105">
+    <div className={`card-body p-4 border-l-4 ${color.replace('bg-', 'border-')}`}>
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-base-content/60 text-sm font-medium uppercase tracking-wide">{title}</p>
+          {loading ? (
+            <div className="h-8 w-16 bg-base-300 animate-pulse rounded mt-1"></div>
+          ) : (
+            <h3 className="text-3xl font-extrabold mt-1">{value}</h3>
+          )}
+        </div>
+        <div className={`p-3 rounded-xl ${color} text-white shadow-lg`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  </div>
+);

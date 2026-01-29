@@ -217,7 +217,7 @@ const Projects = () => {
               {projects.map((p) => (
                 <div key={p._id} className="card bg-gradient-to-br from-pink-50 to-purple-50 dark:from-pink-900/10 dark:to-purple-900/10 shadow-md border border-pink-200 dark:border-pink-800 hover:shadow-xl transition-shadow">
                   <div className="card-body p-5">
-                    <h3 className="card-title text-lg font-bold text-gray-800 dark:text-gray-100">
+                    <h3 className="card-title text-lg font-bold text-primary">
                       {p.name}
                     </h3>
                     <p className="text-sm text-base-content/70 line-clamp-2 min-h-[2.5rem]">
